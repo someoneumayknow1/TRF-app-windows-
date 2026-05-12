@@ -5,15 +5,26 @@ Native C# implementation (non-Electron) of the TRF client.
 ## What is included
 
 - C#/.NET native client (`TRF.NativeClient`)
-- Side-tab style navigation with:
-  - Dashboard
-  - Configuration
-  - Message Creator
-  - Analytics
-  - Nation
-  - Alliance
-  - Discord Auth
-  - Endpoint Coverage
+- Role-based side-tab navigation
+
+| Tab               | Required role(s)        |
+|-------------------|-------------------------|
+| Discord Auth      | *(always visible)*      |
+| Exit              | *(always visible)*      |
+| Dashboard         | `user` or `admin`       |
+| Configuration     | `user` or `admin`       |
+| Message Creator   | `user` or `admin`       |
+| Analytics         | `user` or `admin`       |
+| Account           | `user` or `admin`       |
+| Automation        | `user` or `admin`       |
+| Nation            | `member` or `admin`     |
+| Alliance          | `member` or `admin`     |
+| Bot Panel         | `admin` only            |
+| Endpoint Coverage | `admin` only            |
+
+Users may hold more than one role (e.g. `["user", "member"]` grants both sets of tabs).
+Roles are checked case-insensitively against the `roles` array in `GET /auth/session`.
+The `isAdmin: true` field from the session response is treated as an implicit `admin` role.
 
 ## Endpoint alignment
 

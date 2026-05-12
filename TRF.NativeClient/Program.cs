@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using TRF.NativeClient.Api;
+using TRF.NativeClient.Auth;
+using TRF.NativeClient.Models;
 
 var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "http://localhost:8055";
 var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
@@ -7,41 +9,47 @@ var discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
 
 using var client = new Bar3ApiClient(serverUrl, apiKey, discordCookie);
 
-var tabs = new[]
-{
-    "Dashboard",
-    "Configuration",
-    "Message Creator",
-    "Analytics",
-    "Nation",
-    "Alliance",
-    "Discord Auth",
-    "Endpoint Coverage",
-    "Exit"
-};
+// Fetch the user's Discord session so we can filter tabs by role.
+// This is re-fetched after every login attempt so the tab list refreshes.
+DiscordSession? currentSession = await client.GetDiscordSessionAsync();
 
 while (true)
 {
+    var visibleTabs = TabPermissions.VisibleTabs(currentSession);
+
     Console.Clear();
     Console.WriteLine("TRF Native Client (C#)");
     Console.WriteLine($"Backend: {serverUrl}");
+
+    if (currentSession?.Authenticated == true)
+    {
+        var roles = currentSession.Roles.Count > 0
+            ? string.Join(", ", currentSession.Roles)
+            : (currentSession.IsAdmin ? "admin" : "authenticated");
+        Console.WriteLine($"Logged in  |  Roles: {roles}");
+    }
+    else
+    {
+        Console.WriteLine("Not logged in  –  use 'Discord Auth' to sign in");
+    }
+
     Console.WriteLine();
     Console.WriteLine("Side Tabs:");
 
-    for (var i = 0; i < tabs.Length; i++)
+    for (var i = 0; i < visibleTabs.Count; i++)
     {
-        Console.WriteLine($"  {i + 1}. {tabs[i]}");
+        Console.WriteLine($"  {i + 1}. {visibleTabs[i]}");
     }
 
     Console.Write("\nSelect tab: ");
     var selected = Console.ReadLine();
 
-    if (!int.TryParse(selected, out var index) || index < 1 || index > tabs.Length)
+    if (!int.TryParse(selected, out var index) || index < 1 || index > visibleTabs.Count)
     {
         continue;
     }
 
-    var tab = tabs[index - 1];
+    var tab = visibleTabs[index - 1];
     if (tab == "Exit")
     {
         return;
@@ -49,6 +57,15 @@ while (true)
 
     Console.Clear();
     Console.WriteLine($"[{tab}]\n");
+
+    // Defence-in-depth: re-check permission even though the tab was already filtered.
+    if (!TabPermissions.CanAccess(tab, currentSession))
+    {
+        Console.WriteLine("Access denied. You do not have the required role for this tab.");
+        Console.Write("\nPress Enter to return to side tabs...");
+        Console.ReadLine();
+        continue;
+    }
 
     switch (tab)
     {
@@ -61,9 +78,9 @@ while (true)
             }
 
             Console.WriteLine($"Application On: {appData.ApplicationOn}");
-            Console.WriteLine($"Is Setup: {appData.IsSetup}");
+            Console.WriteLine($"Is Setup:       {appData.IsSetup}");
             Console.WriteLine($"Server Version: {appData.ServerVersion}");
-            Console.WriteLine($"API: {appData.ApiDetails.Used}/{appData.ApiDetails.Max}");
+            Console.WriteLine($"API Usage:      {appData.ApiDetails.Used}/{appData.ApiDetails.Max}");
             break;
 
         case "Configuration":
@@ -74,13 +91,13 @@ while (true)
                 break;
             }
 
-            Console.WriteLine($"Message Subject: {config.MessageSubject}");
-            Console.WriteLine($"Analytics Enabled: {config.AnalyticsEnabled}");
+            Console.WriteLine($"Message Subject:    {config.MessageSubject}");
+            Console.WriteLine($"Analytics Enabled:  {config.AnalyticsEnabled}");
             break;
 
         case "Message Creator":
-            Console.WriteLine("Message creator endpoint: POST /api/sendMessage");
-            Console.WriteLine("Set sample nation details and send? (y/N)");
+            Console.WriteLine("Endpoint: POST /api/sendMessage");
+            Console.WriteLine("Send a sample message? (y/N)");
             var send = Console.ReadLine();
             if (string.Equals(send, "y", StringComparison.OrdinalIgnoreCase))
             {
@@ -106,6 +123,43 @@ while (true)
             foreach (var campaign in campaigns)
             {
                 Console.WriteLine($"- {campaign.Name}");
+            }
+            break;
+
+        case "Account":
+            var account = await client.GetAccountAsync();
+            if (account is null)
+            {
+                Console.WriteLine("Unable to load account data.");
+                break;
+            }
+
+            Console.WriteLine(account.Value.ToString());
+            break;
+
+        case "Automation":
+            var automationState = await client.GetAutomationStateAsync();
+            if (automationState is null)
+            {
+                Console.WriteLine("Unable to load automation state.");
+                break;
+            }
+
+            Console.WriteLine($"Automation state: {automationState.Value}");
+            Console.WriteLine();
+            Console.WriteLine("Toggle automation? (y/N)");
+            var toggle = Console.ReadLine();
+            if (string.Equals(toggle, "y", StringComparison.OrdinalIgnoreCase))
+            {
+                // Try v2 first, fall back to legacy setApplicationState.
+                bool currentEnabled = false;
+                if (automationState.Value.TryGetProperty("enabled", out var enabledEl))
+                {
+                    currentEnabled = enabledEl.GetBoolean();
+                }
+
+                var ok = await client.SetAutomationStateAsync(!currentEnabled);
+                Console.WriteLine(ok ? $"Automation set to {!currentEnabled}." : "Toggle failed.");
             }
             break;
 
@@ -137,17 +191,37 @@ while (true)
             }
             break;
 
-        case "Discord Auth":
-            var session = await client.GetDiscordSessionAsync();
-            if (session is null)
+        case "Bot Panel":
+            var botStatus = await client.GetBotStatusAsync();
+            if (botStatus is null)
             {
-                Console.WriteLine("Session check failed.");
+                Console.WriteLine("Unable to load bot status.");
+                break;
+            }
+
+            Console.WriteLine($"Bot status: {botStatus.Value}");
+            break;
+
+        case "Discord Auth":
+            // Re-fetch session so information is current.
+            currentSession = await client.GetDiscordSessionAsync();
+
+            if (currentSession is null)
+            {
+                Console.WriteLine("Session check failed – server may be unreachable.");
             }
             else
             {
-                Console.WriteLine($"Authenticated: {session.Authenticated}");
-                Console.WriteLine($"Is Admin: {session.IsAdmin}");
-                Console.WriteLine($"Roles: {(session.Roles.Count == 0 ? "(none)" : string.Join(", ", session.Roles))}");
+                Console.WriteLine($"Authenticated: {currentSession.Authenticated}");
+                Console.WriteLine($"Is Admin:      {currentSession.IsAdmin}");
+                Console.WriteLine($"Roles:         {(currentSession.Roles.Count == 0 ? "(none)" : string.Join(", ", currentSession.Roles))}");
+
+                Console.WriteLine();
+                Console.WriteLine("Visible tabs based on your roles:");
+                foreach (var t in TabPermissions.VisibleTabs(currentSession))
+                {
+                    Console.WriteLine($"  - {t}");
+                }
             }
 
             Console.WriteLine();
@@ -158,34 +232,41 @@ while (true)
                 var authUrl = client.GetDiscordAuthUrl("/dashboard");
                 Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
                 Console.WriteLine($"Opened: {authUrl}");
+                Console.WriteLine("After signing in, press Enter to refresh your session...");
+                Console.ReadLine();
+                // Refresh session after the user completes OAuth in the browser.
+                currentSession = await client.GetDiscordSessionAsync();
+                Console.WriteLine(currentSession?.Authenticated == true
+                    ? $"Signed in. Roles: {string.Join(", ", currentSession.Roles)}"
+                    : "Session not yet authenticated.");
             }
             break;
 
         case "Endpoint Coverage":
             Console.WriteLine("Implemented endpoint coverage:");
-            Console.WriteLine("- GET /api/appData");
-            Console.WriteLine("- GET /api/config");
+            Console.WriteLine("- GET  /api/appData");
+            Console.WriteLine("- GET  /api/config");
             Console.WriteLine("- POST /api/setConfig");
             Console.WriteLine("- POST /api/sendMessage");
             Console.WriteLine("- POST /api/setApplicationState");
-            Console.WriteLine("- GET /analytics/campaigns");
+            Console.WriteLine("- GET  /analytics/campaigns");
             Console.WriteLine("- POST /analytics/campaigns");
-            Console.WriteLine("- GET /api/nations | /api/nation | /nations | /nation");
-            Console.WriteLine("- GET /api/alliances | /api/alliance | /alliances | /alliance");
-            Console.WriteLine("- GET /auth/session");
+            Console.WriteLine("- GET  /api/nations | /api/nation | /nations | /nation");
+            Console.WriteLine("- GET  /api/alliances | /api/alliance | /alliances | /alliance");
+            Console.WriteLine("- GET  /auth/session");
             Console.WriteLine("- Browser URL /auth/discord and /auth/logout");
-            Console.WriteLine("- GET /account");
-            Console.WriteLine("- GET /api/bot/status");
+            Console.WriteLine("- GET  /account");
+            Console.WriteLine("- GET  /api/bot/status");
             Console.WriteLine("- POST /api/bot/config");
             Console.WriteLine("- POST /api/v2/auth/login");
-            Console.WriteLine("- GET /api/v2/automation/state");
+            Console.WriteLine("- GET  /api/v2/automation/state");
             Console.WriteLine("- POST /api/v2/automation/state");
             Console.WriteLine("- POST /api/v2/templates");
-            Console.WriteLine("- GET /api/v2/analytics/me");
+            Console.WriteLine("- GET  /api/v2/analytics/me");
             Console.WriteLine("- POST /api/v2/automation/send-active-unallied");
             Console.WriteLine("- POST /api/v2/automation/send-active-unallied-discord");
             Console.WriteLine("- POST /api/v2/automation/send-by-nation-ids");
-            Console.WriteLine("- GET GitHub release endpoint used by check-for-updates");
+            Console.WriteLine("- GET  GitHub releases (check-for-updates)");
             break;
     }
 
