@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using TRF.NativeClient.Api;
 
 var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "http://localhost:8055";
 var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
+var discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
 
-using var client = new Bar3ApiClient(serverUrl, apiKey);
+using var client = new Bar3ApiClient(serverUrl, apiKey, discordCookie);
 
 var tabs = new[]
 {
@@ -13,6 +15,8 @@ var tabs = new[]
     "Analytics",
     "Nation",
     "Alliance",
+    "Discord Auth",
+    "Endpoint Coverage",
     "Exit"
 };
 
@@ -75,7 +79,14 @@ while (true)
             break;
 
         case "Message Creator":
-            Console.WriteLine("Message creation remains server-driven via /api/sendMessage endpoint.");
+            Console.WriteLine("Message creator endpoint: POST /api/sendMessage");
+            Console.WriteLine("Set sample nation details and send? (y/N)");
+            var send = Console.ReadLine();
+            if (string.Equals(send, "y", StringComparison.OrdinalIgnoreCase))
+            {
+                var sent = await client.SendMessageAsync(1, "Sample Nation", "Sample Leader");
+                Console.WriteLine(sent ? "Send request accepted." : "Send request failed.");
+            }
             break;
 
         case "Analytics":
@@ -124,6 +135,57 @@ while (true)
             {
                 Console.WriteLine($"#{alliance.AllianceId} {alliance.Name} | Members: {alliance.Members} | Score: {alliance.Score:0.##}");
             }
+            break;
+
+        case "Discord Auth":
+            var session = await client.GetDiscordSessionAsync();
+            if (session is null)
+            {
+                Console.WriteLine("Session check failed.");
+            }
+            else
+            {
+                Console.WriteLine($"Authenticated: {session.Authenticated}");
+                Console.WriteLine($"Is Admin: {session.IsAdmin}");
+                Console.WriteLine($"Roles: {(session.Roles.Count == 0 ? "(none)" : string.Join(", ", session.Roles))}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Open Discord login URL in browser? (y/N)");
+            var open = Console.ReadLine();
+            if (string.Equals(open, "y", StringComparison.OrdinalIgnoreCase))
+            {
+                var authUrl = client.GetDiscordAuthUrl("/dashboard");
+                Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
+                Console.WriteLine($"Opened: {authUrl}");
+            }
+            break;
+
+        case "Endpoint Coverage":
+            Console.WriteLine("Implemented endpoint coverage:");
+            Console.WriteLine("- GET /api/appData");
+            Console.WriteLine("- GET /api/config");
+            Console.WriteLine("- POST /api/setConfig");
+            Console.WriteLine("- POST /api/sendMessage");
+            Console.WriteLine("- POST /api/setApplicationState");
+            Console.WriteLine("- GET /analytics/campaigns");
+            Console.WriteLine("- POST /analytics/campaigns");
+            Console.WriteLine("- GET /api/nations | /api/nation | /nations | /nation");
+            Console.WriteLine("- GET /api/alliances | /api/alliance | /alliances | /alliance");
+            Console.WriteLine("- GET /auth/session");
+            Console.WriteLine("- Browser URL /auth/discord and /auth/logout");
+            Console.WriteLine("- GET /account");
+            Console.WriteLine("- GET /api/bot/status");
+            Console.WriteLine("- POST /api/bot/config");
+            Console.WriteLine("- POST /api/v2/auth/login");
+            Console.WriteLine("- GET /api/v2/automation/state");
+            Console.WriteLine("- POST /api/v2/automation/state");
+            Console.WriteLine("- POST /api/v2/templates");
+            Console.WriteLine("- GET /api/v2/analytics/me");
+            Console.WriteLine("- POST /api/v2/automation/send-active-unallied");
+            Console.WriteLine("- POST /api/v2/automation/send-active-unallied-discord");
+            Console.WriteLine("- POST /api/v2/automation/send-by-nation-ids");
+            Console.WriteLine("- GET GitHub release endpoint used by check-for-updates");
             break;
     }
 
