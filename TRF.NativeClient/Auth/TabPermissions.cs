@@ -24,7 +24,7 @@ public static class TabPermissions
 
     // For every tab, the set of roles that grant access.
     // An empty set means the tab is always visible (no auth required).
-    private static readonly Dictionary<string, HashSet<string>> RequiredRoles = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, HashSet<string>> _requiredRoles = new(StringComparer.OrdinalIgnoreCase)
     {
         // Always visible – used for login / logout flow.
         ["Discord Auth"]      = [],
@@ -68,7 +68,7 @@ public static class TabPermissions
     /// </summary>
     public static bool CanAccess(string tab, DiscordSession? session)
     {
-        if (!RequiredRoles.TryGetValue(tab, out var required))
+        if (!_requiredRoles.TryGetValue(tab, out var required))
         {
             // Unknown tab – deny by default.
             return false;
