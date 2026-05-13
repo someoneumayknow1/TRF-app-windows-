@@ -173,8 +173,9 @@ public partial class MainWindow : Window
         {
             loginBtn.IsEnabled = false;
             loginBtn.Content = "Opening login window...";
-            var authUrl = _client.GetDiscordAuthUrl(OAuthCallbackListener.CallbackUrl);
-            var authWindow = new DiscordAuthWindow(authUrl, OAuthCallbackListener.CallbackUrl)
+            var callbackUrl = OAuthCallbackListener.CreateCallbackUrl();
+            var authUrl = _client.GetDiscordAuthUrl(callbackUrl);
+            var authWindow = new DiscordAuthWindow(authUrl, callbackUrl)
             {
                 Owner = this
             };
