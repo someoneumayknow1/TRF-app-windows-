@@ -60,8 +60,8 @@ Implemented in the native client API layer:
 ## Discord auth
 
 - Session check uses `GET /auth/session`.
-- Login uses browser launch to `/auth/discord` with `returnTo=http://localhost:9876/callback`.
-- The native client starts a temporary local HTTP listener on `http://localhost:9876/` and captures
+- Login uses browser launch to `/auth/discord` with `returnTo=http://localhost:{ephemeralPort}/callback`.
+- The native client uses a temporary loopback callback URL on an ephemeral localhost port and captures
   the returned session cookie automatically.
 - If your backend expects cookie auth, optionally pass an existing cookie header via:
   - `BAR3_DISCORD_COOKIE`

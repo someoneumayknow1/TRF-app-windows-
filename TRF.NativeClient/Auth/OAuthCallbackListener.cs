@@ -1,11 +1,19 @@
 using System.Net;
+using System.Net.Sockets;
 
 namespace TRF.NativeClient.Auth;
 
 public static class OAuthCallbackListener
 {
-    private const int Port = 9876;
-    public static readonly string CallbackUrl = $"http://localhost:{Port}/callback";
+    private const string CallbackPath = "/callback";
+
+    public static string CreateCallbackUrl()
+    {
+        using var tcp = new TcpListener(IPAddress.Loopback, 0);
+        tcp.Start();
+        var port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+        return $"http://localhost:{port}{CallbackPath}";
+    }
 
     public static async Task<string?> WaitForCookieAsync(
         string discordAuthUrl,
@@ -13,20 +21,24 @@ public static class OAuthCallbackListener
         CancellationToken cancellationToken = default)
     {
         timeout ??= TimeSpan.FromMinutes(3);
+        var callbackUrl = CreateCallbackUrl();
+        var callbackUri = new Uri(callbackUrl);
+        var port = callbackUri.Port;
 
         using var listener = new HttpListener();
-        listener.Prefixes.Add($"http://localhost:{Port}/");
+        listener.Prefixes.Add($"http://localhost:{port}/");
         try
         {
             listener.Start();
         }
         catch (HttpListenerException ex)
         {
-            Console.WriteLine($"Unable to start OAuth callback listener on http://localhost:{Port}/ ({ex.Message})");
+            Console.WriteLine($"Unable to start OAuth callback listener on http://localhost:{port}/ ({ex.Message})");
             return null;
         }
 
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(discordAuthUrl)
+        var authUrl = EnsureReturnTo(discordAuthUrl, callbackUrl);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(authUrl)
         {
             UseShellExecute = true
         });
@@ -75,5 +87,24 @@ public static class OAuthCallbackListener
         {
             listener.Stop();
         }
+    }
+
+    private static string EnsureReturnTo(string authUrl, string callbackUrl)
+    {
+        if (!Uri.TryCreate(authUrl, UriKind.Absolute, out var authUri))
+        {
+            var separator = authUrl.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+            return $"{authUrl}{separator}returnTo={Uri.EscapeDataString(callbackUrl)}";
+        }
+
+        var builder = new UriBuilder(authUri);
+        var queryParts = builder.Query
+            .TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => !p.StartsWith("returnTo=", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        queryParts.Add($"returnTo={Uri.EscapeDataString(callbackUrl)}");
+        builder.Query = string.Join("&", queryParts);
+        return builder.Uri.ToString();
     }
 }
