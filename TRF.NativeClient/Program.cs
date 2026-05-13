@@ -2,7 +2,7 @@ using TRF.NativeClient.Api;
 using TRF.NativeClient.Auth;
 using TRF.NativeClient.Models;
 
-const string DefaultServerUrl = "https://your-actual-server.com";
+const string DefaultServerUrl = "https://bar3-server.onrender.com";
 var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? DefaultServerUrl;
 var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
 var discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
