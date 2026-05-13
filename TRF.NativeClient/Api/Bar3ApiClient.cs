@@ -38,8 +38,14 @@ public sealed class Bar3ApiClient : IDisposable
     public Task<JsonElement?> GetAccountAsync(CancellationToken cancellationToken = default) =>
         GetJsonAsync<JsonElement?>("account", cancellationToken);
 
-    public Task<JsonElement?> GetBotStatusAsync(CancellationToken cancellationToken = default) =>
-        GetJsonAsync<JsonElement?>("api/bot/status", cancellationToken);
+    public Task<IReadOnlyList<BotServer>?> GetBotServersAsync(CancellationToken cancellationToken = default) =>
+        GetJsonAsync<IReadOnlyList<BotServer>>("api/bot/servers", cancellationToken);
+
+    public Task<IReadOnlyList<BotCommand>?> GetBotCommandUsageAsync(CancellationToken cancellationToken = default) =>
+        GetJsonAsync<IReadOnlyList<BotCommand>>("api/bot/commands/usage", cancellationToken);
+
+    public Task<bool> SendBotMessageAsync(string content, CancellationToken cancellationToken = default) =>
+        PostJsonExpectSuccessAsync("api/bot/send", new { message = content }, cancellationToken);
 
     public Task<DiscordSession?> GetDiscordSessionAsync(CancellationToken cancellationToken = default) =>
         GetJsonAsync<DiscordSession>("auth/session", cancellationToken);

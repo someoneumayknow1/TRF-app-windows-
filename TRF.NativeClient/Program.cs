@@ -192,14 +192,69 @@ while (true)
             break;
 
         case "Bot Panel":
-            var botStatus = await client.GetBotStatusAsync();
-            if (botStatus is null)
+            // 1. Show Discord servers the bot is in.
+            var botServers = await client.GetBotServersAsync();
+            if (botServers is null)
             {
-                Console.WriteLine("Unable to load bot status.");
-                break;
+                Console.WriteLine("Unable to load bot servers (GET /api/bot/servers failed).");
+            }
+            else if (botServers.Count == 0)
+            {
+                Console.WriteLine("Bot is not a member of any Discord servers.");
+            }
+            else
+            {
+                Console.WriteLine("Discord servers the bot is in:");
+                foreach (var srv in botServers)
+                {
+                    Console.WriteLine($"  [{srv.Id}] {srv.Name}  –  {srv.MemberCount:N0} members");
+                }
             }
 
-            Console.WriteLine($"Bot status: {botStatus.Value}");
+            Console.WriteLine();
+
+            // 2. Show most-used bot commands.
+            var botCommands = await client.GetBotCommandUsageAsync();
+            if (botCommands is null)
+            {
+                Console.WriteLine("Unable to load command usage (GET /api/bot/commands/usage failed).");
+            }
+            else if (botCommands.Count == 0)
+            {
+                Console.WriteLine("No command usage data recorded yet.");
+            }
+            else
+            {
+                Console.WriteLine("Most-used bot commands:");
+                foreach (var cmd in botCommands)
+                {
+                    Console.WriteLine($"  /{cmd.Name}  ({cmd.UsageCount:N0} uses)  –  {cmd.Description}");
+                }
+            }
+
+            Console.WriteLine();
+
+            // 3. Optionally send a message through the bot.
+            Console.WriteLine("Send a message through the bot? (y/N)");
+            var sendBot = Console.ReadLine();
+            if (string.Equals(sendBot, "y", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Write("Message content (max 2000 chars): ");
+                var botContent = Console.ReadLine() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(botContent))
+                {
+                    Console.WriteLine("Message is empty – send cancelled.");
+                }
+                else if (botContent.Length > 2000)
+                {
+                    Console.WriteLine("Message exceeds 2000 characters – send cancelled.");
+                }
+                else
+                {
+                    var botSent = await client.SendBotMessageAsync(botContent);
+                    Console.WriteLine(botSent ? "Message sent through bot." : "Failed to send bot message (POST /api/bot/send failed).");
+                }
+            }
             break;
 
         case "Discord Auth":
@@ -256,8 +311,10 @@ while (true)
             Console.WriteLine("- GET  /auth/session");
             Console.WriteLine("- Browser URL /auth/discord and /auth/logout");
             Console.WriteLine("- GET  /account");
-            Console.WriteLine("- GET  /api/bot/status");
             Console.WriteLine("- POST /api/bot/config");
+            Console.WriteLine("- GET  /api/bot/servers");
+            Console.WriteLine("- GET  /api/bot/commands/usage");
+            Console.WriteLine("- POST /api/bot/send");
             Console.WriteLine("- POST /api/v2/auth/login");
             Console.WriteLine("- GET  /api/v2/automation/state");
             Console.WriteLine("- POST /api/v2/automation/state");
