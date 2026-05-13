@@ -12,8 +12,4 @@
   </PropertyGroup>
 
 
-  <ItemGroup>
-    <PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
-  </ItemGroup>
-
 </Project>
