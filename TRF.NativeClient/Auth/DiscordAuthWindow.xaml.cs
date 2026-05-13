@@ -33,7 +33,7 @@ public class DiscordAuthWindow : Window
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Discord auth window failed to initialize: {ex.Message}");
+                Console.WriteLine($"Discord auth window failed to initialize: {ex}");
                 Complete(null);
             }
         };
@@ -49,10 +49,10 @@ public class DiscordAuthWindow : Window
         };
     }
 
-    public Task<string?> AuthenticateAsync()
+    public async Task<string?> AuthenticateAsync()
     {
         ShowDialog();
-        return _completionSource.Task;
+        return await _completionSource.Task.ConfigureAwait(true);
     }
 
     private async void HandleNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
@@ -78,7 +78,7 @@ public class DiscordAuthWindow : Window
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Unable to capture Discord auth cookies: {ex.Message}");
+            Console.WriteLine($"Unable to capture Discord auth cookies: {ex}");
             Complete(null);
         }
     }
