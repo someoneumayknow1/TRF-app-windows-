@@ -33,7 +33,11 @@ public class DiscordAuthWindow : Window
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Discord auth window failed to initialize: {ex}");
+                MessageBox.Show(
+                    $"Unable to start Discord login.\n\n{ex.Message}",
+                    "Discord Login Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
                 Complete(null);
             }
         };
@@ -49,13 +53,19 @@ public class DiscordAuthWindow : Window
         };
     }
 
-    public async Task<string?> AuthenticateAsync()
+    public Task<string?> AuthenticateAsync()
     {
-        ShowDialog();
-        return await _completionSource.Task.ConfigureAwait(true);
+        Show();
+        Activate();
+        return _completionSource.Task;
     }
 
-    private async void HandleNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    private void HandleNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        _ = HandleNavigationStartingAsync(e);
+    }
+
+    private async Task HandleNavigationStartingAsync(CoreWebView2NavigationStartingEventArgs e)
     {
         if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var navigationUri))
         {
@@ -78,7 +88,11 @@ public class DiscordAuthWindow : Window
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Unable to capture Discord auth cookies: {ex}");
+            MessageBox.Show(
+                $"Unable to complete Discord login.\n\n{ex.Message}",
+                "Discord Login Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
             Complete(null);
         }
     }
