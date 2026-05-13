@@ -173,7 +173,7 @@ dotnet run --project TRF.NativeClient/TRF.NativeClient.csproj
 
 Optional environment variables:
 
-- `BAR3_SERVER_URL` (default: `https://your-actual-server.com` — placeholder, replace with your real server)
+- `BAR3_SERVER_URL` (default: `https://bar3-server.onrender.com` — placeholder, replace with your real server)
 - `BAR3_API_KEY` (sent as `x-api-key`)
 - `BAR3_DISCORD_COOKIE` (optional cookie header for authenticated session calls)
 
