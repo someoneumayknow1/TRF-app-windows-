@@ -18,7 +18,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "https://your-actual-server.com";
+        _serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "https://bar3-server.onrender.com";
         var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
         var cookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
         _client = new Bar3ApiClient(_serverUrl, apiKey, cookie);
