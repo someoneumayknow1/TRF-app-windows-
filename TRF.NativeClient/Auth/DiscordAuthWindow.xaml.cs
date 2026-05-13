@@ -31,13 +31,22 @@ public class DiscordAuthWindow : Window
                 _webView.CoreWebView2.NavigationStarting += HandleNavigationStarting;
                 _webView.Source = new Uri(discordAuthUrl);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Discord auth window failed to initialize: {ex.Message}");
                 Complete(null);
             }
         };
 
-        Closed += (_, _) => Complete(null);
+        Closed += (_, _) =>
+        {
+            if (_webView.CoreWebView2 is not null)
+            {
+                _webView.CoreWebView2.NavigationStarting -= HandleNavigationStarting;
+            }
+
+            Complete(null);
+        };
     }
 
     public Task<string?> AuthenticateAsync()
@@ -67,8 +76,9 @@ public class DiscordAuthWindow : Window
             var cookieHeader = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
             Complete(string.IsNullOrWhiteSpace(cookieHeader) ? null : cookieHeader);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Unable to capture Discord auth cookies: {ex.Message}");
             Complete(null);
         }
     }
