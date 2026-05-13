@@ -12,80 +12,65 @@ public static class OAuthCallbackListener
         using var tcp = new TcpListener(IPAddress.Loopback, 0);
         tcp.Start();
         var port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+        tcp.Stop();
         return $"http://localhost:{port}{CallbackPath}";
     }
 
     public static async Task<string?> WaitForCookieAsync(
         string discordAuthUrl,
+        string? callbackUrl = null,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
         timeout ??= TimeSpan.FromMinutes(3);
-        var callbackUrl = CreateCallbackUrl();
-        var callbackUri = new Uri(callbackUrl);
-        var port = callbackUri.Port;
-
-        using var listener = new HttpListener();
-        listener.Prefixes.Add($"http://localhost:{port}/");
-        try
+        if (!TryCreateStartedListener(callbackUrl, out var listener, out var finalCallbackUrl))
         {
-            listener.Start();
-        }
-        catch (HttpListenerException ex)
-        {
-            Console.WriteLine($"Unable to start OAuth callback listener on http://localhost:{port}/ ({ex.Message})");
+            Console.WriteLine("Unable to start OAuth callback listener on localhost.");
             return null;
         }
 
-        var authUrl = EnsureReturnTo(discordAuthUrl, callbackUrl);
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(authUrl)
+        using (listener)
         {
-            UseShellExecute = true
-        });
-
-        Console.WriteLine($"Browser opened. Waiting for Discord login (timeout: {timeout.Value.TotalMinutes:0} min)...");
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout.Value);
-
-        try
-        {
-            var contextTask = listener.GetContextAsync();
-            await Task.WhenAny(contextTask, Task.Delay(Timeout.Infinite, cts.Token));
-
-            if (!contextTask.IsCompletedSuccessfully)
+            try
             {
-                listener.Stop();
-                Console.WriteLine("Login timed out.");
+                var authUrl = EnsureReturnTo(discordAuthUrl, finalCallbackUrl);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(authUrl)
+                {
+                    UseShellExecute = true
+                });
+
+                Console.WriteLine($"Browser opened. Waiting for Discord login (timeout: {timeout.Value.TotalMinutes:0} min)...");
+
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(timeout.Value);
+
+                var context = await listener.GetContextAsync().WaitAsync(cts.Token);
+
+                var response = context.Response;
+                var html = "<html><body><h2>Logged in! You can close this tab and return to the app.</h2></body></html>"u8.ToArray();
+                response.ContentType = "text/html";
+                response.ContentLength64 = html.Length;
+                await response.OutputStream.WriteAsync(html, cancellationToken);
+                response.Close();
+
+                var cookie = context.Request.Headers["Cookie"];
+                if (!string.IsNullOrWhiteSpace(cookie))
+                {
+                    return cookie;
+                }
+
+                var queryCookie = context.Request.QueryString["cookie"];
+                return string.IsNullOrWhiteSpace(queryCookie) ? null : queryCookie;
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine(cancellationToken.IsCancellationRequested ? "Login cancelled." : "Login timed out.");
                 return null;
             }
-
-            var context = contextTask.Result;
-
-            var response = context.Response;
-            var html = "<html><body><h2>Logged in! You can close this tab and return to the app.</h2></body></html>"u8.ToArray();
-            response.ContentType = "text/html";
-            response.ContentLength64 = html.Length;
-            await response.OutputStream.WriteAsync(html, cancellationToken);
-            response.Close();
-
-            var cookie = context.Request.Headers["Cookie"];
-            if (!string.IsNullOrWhiteSpace(cookie))
+            finally
             {
-                return cookie;
+                listener.Close();
             }
-
-            var queryCookie = context.Request.QueryString["cookie"];
-            return string.IsNullOrWhiteSpace(queryCookie) ? null : queryCookie;
-        }
-        catch (OperationCanceledException)
-        {
-            Console.WriteLine("Login cancelled.");
-            return null;
-        }
-        finally
-        {
-            listener.Stop();
         }
     }
 
@@ -93,8 +78,7 @@ public static class OAuthCallbackListener
     {
         if (!Uri.TryCreate(authUrl, UriKind.Absolute, out var authUri))
         {
-            var separator = authUrl.Contains('?', StringComparison.Ordinal) ? '&' : '?';
-            return $"{authUrl}{separator}returnTo={Uri.EscapeDataString(callbackUrl)}";
+            return authUrl;
         }
 
         var builder = new UriBuilder(authUri);
@@ -106,5 +90,53 @@ public static class OAuthCallbackListener
         queryParts.Add($"returnTo={Uri.EscapeDataString(callbackUrl)}");
         builder.Query = string.Join("&", queryParts);
         return builder.Uri.ToString();
+    }
+
+    private static bool TryCreateStartedListener(string? preferredCallbackUrl, out HttpListener listener, out string callbackUrl)
+    {
+        if (TryStartListener(preferredCallbackUrl, out listener, out callbackUrl))
+        {
+            return true;
+        }
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            if (TryStartListener(CreateCallbackUrl(), out listener, out callbackUrl))
+            {
+                return true;
+            }
+        }
+
+        listener = new HttpListener();
+        callbackUrl = string.Empty;
+        return false;
+    }
+
+    private static bool TryStartListener(string? candidateCallbackUrl, out HttpListener listener, out string callbackUrl)
+    {
+        listener = new HttpListener();
+        callbackUrl = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(candidateCallbackUrl) ||
+            !Uri.TryCreate(candidateCallbackUrl, UriKind.Absolute, out var callbackUri) ||
+            !callbackUri.IsLoopback)
+        {
+            return false;
+        }
+
+        listener.Prefixes.Add($"http://localhost:{callbackUri.Port}/");
+
+        try
+        {
+            listener.Start();
+            callbackUrl = candidateCallbackUrl;
+            return true;
+        }
+        catch (HttpListenerException)
+        {
+            listener.Close();
+            listener = new HttpListener();
+            return false;
+        }
     }
 }
