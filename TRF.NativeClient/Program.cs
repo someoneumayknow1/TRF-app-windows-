@@ -7,13 +7,6 @@ var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? Default
 var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
 var discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
 
-if (string.Equals(serverUrl, DefaultServerUrl, StringComparison.OrdinalIgnoreCase))
-{
-    Console.WriteLine(
-        $"Default server URL is still set to placeholder '{DefaultServerUrl}'. " +
-        "Set BAR3_SERVER_URL or update the hardcoded default before running.");
-    return;
-}
 
 var client = new Bar3ApiClient(serverUrl, apiKey, discordCookie);
 
