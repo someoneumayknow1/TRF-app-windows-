@@ -60,7 +60,9 @@ Implemented in the native client API layer:
 ## Discord auth
 
 - Session check uses `GET /auth/session`.
-- Login uses browser launch to `/auth/discord`.
+- Login uses browser launch to `/auth/discord` with `returnTo=http://localhost:9876/callback`.
+- The native client starts a temporary local HTTP listener on `http://localhost:9876/` and captures
+  the returned session cookie automatically.
 - If your backend expects cookie auth, optionally pass an existing cookie header via:
   - `BAR3_DISCORD_COOKIE`
 
@@ -171,6 +173,21 @@ dotnet run --project TRF.NativeClient/TRF.NativeClient.csproj
 
 Optional environment variables:
 
-- `BAR3_SERVER_URL` (default: `http://localhost:8055`)
+- `BAR3_SERVER_URL` (default: `https://your-actual-server.com`)
 - `BAR3_API_KEY` (sent as `x-api-key`)
 - `BAR3_DISCORD_COOKIE` (optional cookie header for authenticated session calls)
+
+## Distribution
+
+Install as a global .NET tool:
+
+```bash
+dotnet pack TRF.NativeClient/TRF.NativeClient.csproj -c Release
+dotnet tool install -g trf-client --add-source ./TRF.NativeClient/bin/Release
+```
+
+Build a self-contained single-file Windows executable:
+
+```bash
+dotnet publish TRF.NativeClient/TRF.NativeClient.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true
+```
