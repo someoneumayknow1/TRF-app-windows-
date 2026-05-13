@@ -172,9 +172,13 @@ public partial class MainWindow : Window
         loginBtn.Click += async (_, _) =>
         {
             loginBtn.IsEnabled = false;
-            loginBtn.Content = "Opening browser...";
+            loginBtn.Content = "Opening login window...";
             var authUrl = _client.GetDiscordAuthUrl(OAuthCallbackListener.CallbackUrl);
-            var cookie = await OAuthCallbackListener.WaitForCookieAsync(authUrl);
+            var authWindow = new DiscordAuthWindow(authUrl, OAuthCallbackListener.CallbackUrl)
+            {
+                Owner = this
+            };
+            var cookie = await authWindow.AuthenticateAsync();
             if (cookie is not null)
             {
                 _client.Dispose();
