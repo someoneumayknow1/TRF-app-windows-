@@ -1,0 +1,19 @@
+name: Build
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet publish TRF.NativeClient/TRF.NativeClient.csproj -c Release -r win-x64 -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true --self-contained true -o ./dist
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/TRF.NativeClient.exe
