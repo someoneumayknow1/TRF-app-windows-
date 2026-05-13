@@ -7,24 +7,24 @@ Native C# implementation (non-Electron) of the TRF client.
 - C#/.NET native client (`TRF.NativeClient`)
 - Role-based side-tab navigation
 
-| Tab               | Required role(s)        |
-|-------------------|-------------------------|
-| Discord Auth      | *(always visible)*      |
-| Exit              | *(always visible)*      |
-| Dashboard         | `user` or `admin`       |
-| Configuration     | `user` or `admin`       |
-| Message Creator   | `user` or `admin`       |
-| Analytics         | `user` or `admin`       |
-| Account           | `user` or `admin`       |
-| Automation        | `user` or `admin`       |
-| Nation            | `member` or `admin`     |
-| Alliance          | `member` or `admin`     |
-| Bot Panel         | `admin` only            |
-| Endpoint Coverage | `admin` only            |
+| Tab               | Required role(s)                  |
+|-------------------|-----------------------------------|
+| Discord Auth      | *(always visible)*                |
+| Exit              | *(always visible)*                |
+| Dashboard         | `bar3_client` or `bar3_server`    |
+| Configuration     | `bar3_client` or `bar3_server`    |
+| Message Creator   | `bar3_client` or `bar3_server`    |
+| Analytics         | `bar3_client` or `bar3_server`    |
+| Account           | `bar3_client` or `bar3_server`    |
+| Automation        | `bar3_client` or `bar3_server`    |
+| Nation            | `member_guild` or `bar3_server`   |
+| Alliance          | `member_guild` or `bar3_server`   |
+| Bot Panel         | `bar3_server` only                |
+| Endpoint Coverage | `bar3_server` only                |
 
-Users may hold more than one role (e.g. `["user", "member"]` grants both sets of tabs).
-Roles are checked case-insensitively against the `roles` array in `GET /auth/session`.
-The `isAdmin: true` field from the session response is treated as an implicit `admin` role.
+Users may hold more than one role.
+Roles are checked case-insensitively against legacy `roles` plus `discordRoles` in `GET /auth/session`.
+The `isAdmin: true` / `adminAuthenticated: true` fields are treated as implicit admin access.
 
 ## Endpoint alignment
 
@@ -68,7 +68,7 @@ Implemented in the native client API layer:
 
 ## Bot Panel
 
-The **Bot Panel** tab is visible only to users where `isAdmin: true` in `GET /auth/session`.
+The **Bot Panel** tab is visible only to users with `discordRoles.bar3_server: true` (or admin compatibility fields) in `GET /auth/session`.
 When opened it:
 
 1. Lists every Discord server the bot is in — `GET /api/bot/servers`
@@ -78,9 +78,9 @@ When opened it:
 ### Required server-side changes (bar3-server)
 
 Add the three routes below to your bar3-server Express app.  All three must be protected
-so that only sessions where `isAdmin === true` (from your existing Discord session check)
+so that only sessions with `discordRoles.bar3_server === true` (or `adminAuthenticated === true`)
 can call them.  Return `401` if the session cookie is absent and `403` if the user is
-authenticated but not an admin.
+authenticated but lacks server-admin access.
 
 #### `GET /api/bot/servers`
 

@@ -5,22 +5,24 @@ namespace TRF.NativeClient.Auth;
 /// <summary>
 /// Maps side-tab names to the roles required to access them.
 /// Role names are matched case-insensitively against the strings in
-/// <see cref="DiscordSession.Roles"/> returned by /auth/session.
+/// <see cref="DiscordSession.GetGrantedRoles"/> derived from /auth/session.
 ///
 /// Role hierarchy used by the TRF application:
-///   admin  – full access (Bot Panel, Endpoint Coverage, and all user/member tabs).
-///   user   – Dashboard, Configuration, Message Creator, Analytics, Account, Automation.
-///   member – Nation and Alliance tabs.
+///   bar3_server  – full access (Bot Panel, Endpoint Coverage, and all bar3_client/member_guild tabs).
+///   bar3_client  – Dashboard, Configuration, Message Creator, Analytics, Account, Automation.
+///   member_guild – Nation and Alliance tabs.
 ///
-/// A single user may hold more than one role (e.g. ["user", "member"]).
-/// <see cref="DiscordSession.IsAdmin"/> is treated as an implicit "admin" role.
+/// A single user may hold more than one role.
+/// <see cref="DiscordSession.IsAdmin"/>/<see cref="DiscordSession.AdminAuthenticated"/>
+/// are treated as implicit admin access for backwards compatibility.
 /// </summary>
 public static class TabPermissions
 {
     // Role name constants (checked case-insensitively).
-    public const string RoleAdmin  = "admin";
-    public const string RoleUser   = "user";
-    public const string RoleMember = "member";
+    public const string RoleAdmin = "admin";
+    public const string RoleBar3Server = "bar3_server";
+    public const string RoleBar3Client = "bar3_client";
+    public const string RoleMemberGuild = "member_guild";
 
     // For every tab, the set of roles that grant access.
     // An empty set means the tab is always visible (no auth required).
@@ -30,21 +32,21 @@ public static class TabPermissions
         ["Discord Auth"]      = [],
         ["Exit"]              = [],
 
-        // Requires the "user" role (or admin).
-        ["Dashboard"]         = [RoleUser, RoleAdmin],
-        ["Configuration"]     = [RoleUser, RoleAdmin],
-        ["Message Creator"]   = [RoleUser, RoleAdmin],
-        ["Analytics"]         = [RoleUser, RoleAdmin],
-        ["Account"]           = [RoleUser, RoleAdmin],
-        ["Automation"]        = [RoleUser, RoleAdmin],
+        // Requires the "bar3_client" role (or admin).
+        ["Dashboard"]         = [RoleBar3Client, RoleBar3Server, RoleAdmin],
+        ["Configuration"]     = [RoleBar3Client, RoleBar3Server, RoleAdmin],
+        ["Message Creator"]   = [RoleBar3Client, RoleBar3Server, RoleAdmin],
+        ["Analytics"]         = [RoleBar3Client, RoleBar3Server, RoleAdmin],
+        ["Account"]           = [RoleBar3Client, RoleBar3Server, RoleAdmin],
+        ["Automation"]        = [RoleBar3Client, RoleBar3Server, RoleAdmin],
 
-        // Requires the "member" role (or admin).
-        ["Nation"]            = [RoleMember, RoleAdmin],
-        ["Alliance"]          = [RoleMember, RoleAdmin],
+        // Requires the "member_guild" role (or admin).
+        ["Nation"]            = [RoleMemberGuild, RoleBar3Server, RoleAdmin],
+        ["Alliance"]          = [RoleMemberGuild, RoleBar3Server, RoleAdmin],
 
-        // Requires the "admin" role.
-        ["Bot Panel"]         = [RoleAdmin],
-        ["Endpoint Coverage"] = [RoleAdmin],
+        // Requires "bar3_server" (or admin compatibility role).
+        ["Bot Panel"]         = [RoleBar3Server, RoleAdmin],
+        ["Endpoint Coverage"] = [RoleBar3Server, RoleAdmin],
     };
 
     /// <summary>All known tabs in display order.</summary>
@@ -81,21 +83,19 @@ public static class TabPermissions
         }
 
         // Must be authenticated.
-        if (session is null || !session.Authenticated)
+        if (session is null || !session.IsAuthenticated)
         {
             return false;
         }
 
         // Admins can access everything.
-        if (session.IsAdmin)
+        if (session.HasAdminAccess)
         {
             return true;
         }
 
         // Check whether any of the user's roles satisfy the tab's requirements.
-        var userRoles = session.Roles
-            .Select(r => r.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var userRoles = session.GetGrantedRoles();
 
         return required.Overlaps(userRoles);
     }

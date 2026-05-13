@@ -31,11 +31,9 @@ try
         Console.WriteLine("TRF Native Client (C#)");
         Console.WriteLine($"Backend: {serverUrl}");
 
-        if (currentSession?.Authenticated == true)
+        if (currentSession?.IsAuthenticated == true)
         {
-            var roles = currentSession.Roles.Count > 0
-                ? string.Join(", ", currentSession.Roles)
-                : (currentSession.IsAdmin ? "admin" : "authenticated");
+            var roles = string.Join(", ", currentSession.GetDisplayRoles());
             Console.WriteLine($"Logged in  |  Roles: {roles}");
         }
         else
@@ -277,9 +275,9 @@ try
                 }
                 else
                 {
-                    Console.WriteLine($"Authenticated: {currentSession.Authenticated}");
-                    Console.WriteLine($"Is Admin:      {currentSession.IsAdmin}");
-                    Console.WriteLine($"Roles:         {(currentSession.Roles.Count == 0 ? "(none)" : string.Join(", ", currentSession.Roles))}");
+                    Console.WriteLine($"Authenticated: {currentSession.IsAuthenticated}");
+                    Console.WriteLine($"Has Admin:     {currentSession.HasAdminAccess}");
+                    Console.WriteLine($"Roles:         {string.Join(", ", currentSession.GetDisplayRoles())}");
 
                     Console.WriteLine();
                     Console.WriteLine("Visible tabs based on your roles:");
@@ -301,8 +299,8 @@ try
                         client.Dispose();
                         client = new Bar3ApiClient(serverUrl, apiKey, cookie);
                         currentSession = await client.GetDiscordSessionAsync();
-                        Console.WriteLine(currentSession?.Authenticated == true
-                            ? $"Signed in. Roles: {string.Join(", ", currentSession.Roles)}"
+                        Console.WriteLine(currentSession?.IsAuthenticated == true
+                            ? $"Signed in. Roles: {string.Join(", ", currentSession.GetDisplayRoles())}"
                             : "Session not yet authenticated.");
                     }
                 }
