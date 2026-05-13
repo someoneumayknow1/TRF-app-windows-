@@ -16,7 +16,15 @@ public static class OAuthCallbackListener
 
         using var listener = new HttpListener();
         listener.Prefixes.Add($"http://localhost:{Port}/");
-        listener.Start();
+        try
+        {
+            listener.Start();
+        }
+        catch (HttpListenerException ex)
+        {
+            Console.WriteLine($"Unable to start OAuth callback listener on http://localhost:{Port}/ ({ex.Message})");
+            return null;
+        }
 
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(discordAuthUrl)
         {
@@ -35,6 +43,7 @@ public static class OAuthCallbackListener
 
             if (!contextTask.IsCompletedSuccessfully)
             {
+                listener.Stop();
                 Console.WriteLine("Login timed out.");
                 return null;
             }

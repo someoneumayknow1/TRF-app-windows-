@@ -2,9 +2,18 @@ using TRF.NativeClient.Api;
 using TRF.NativeClient.Auth;
 using TRF.NativeClient.Models;
 
-var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "https://your-actual-server.com";
+const string DefaultServerUrl = "https://your-actual-server.com";
+var serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? DefaultServerUrl;
 var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
 var discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
+
+if (string.Equals(serverUrl, DefaultServerUrl, StringComparison.OrdinalIgnoreCase))
+{
+    Console.WriteLine(
+        $"Default server URL is still set to placeholder '{DefaultServerUrl}'. " +
+        "Set BAR3_SERVER_URL or update the hardcoded default before running.");
+    return;
+}
 
 var client = new Bar3ApiClient(serverUrl, apiKey, discordCookie);
 
