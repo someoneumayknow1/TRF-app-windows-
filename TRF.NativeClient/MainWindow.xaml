@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TRF Client" Height="650" Width="1000"
         WindowStartupLocation="CenterScreen"
-        Background="#0f0f13">
+        Background="#120d08">
 
     <Window.Resources>
         <Style x:Key="NavButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#8888aa"/>
+            <Setter Property="Foreground" Value="#d6b9a5"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,10"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -19,15 +19,15 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="{TemplateBinding Background}"
-                                CornerRadius="6" Margin="4,2">
+                                CornerRadius="12" Margin="4,3">
                             <ContentPresenter Margin="{TemplateBinding Padding}"
                                               HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1e1e2e"/>
-                                <Setter Property="Foreground" Value="#ccccee"/>
+                                <Setter TargetName="border" Property="Background" Value="#2a1a12"/>
+                                <Setter Property="Foreground" Value="#ffd5b3"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -36,12 +36,12 @@
         </Style>
 
         <Style x:Key="NavButtonActive" TargetType="Button" BasedOn="{StaticResource NavButton}">
-            <Setter Property="Background" Value="#1e1e2e"/>
-            <Setter Property="Foreground" Value="#a78bfa"/>
+            <Setter Property="Background" Value="#3a2215"/>
+            <Setter Property="Foreground" Value="#fb923c"/>
         </Style>
 
         <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Background" Value="#a78bfa"/>
+            <Setter Property="Background" Value="#f97316"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,8"/>
@@ -51,17 +51,17 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6">
+                         <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="12">
                             <ContentPresenter Margin="{TemplateBinding Padding}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#7c3aed"/>
+                                <Setter TargetName="border" Property="Background" Value="#ea580c"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#333355"/>
-                                <Setter Property="Foreground" Value="#666688"/>
+                                <Setter TargetName="border" Property="Background" Value="#4a2d1f"/>
+                                <Setter Property="Foreground" Value="#a78b7a"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -70,14 +70,14 @@
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#1e1e2e"/>
-            <Setter Property="Foreground" Value="#e0e0ee"/>
-            <Setter Property="BorderBrush" Value="#333355"/>
+            <Setter Property="Background" Value="#2a1a12"/>
+            <Setter Property="Foreground" Value="#f4e5d7"/>
+            <Setter Property="BorderBrush" Value="#7c3f1d"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="CaretBrush" Value="#a78bfa"/>
+            <Setter Property="CaretBrush" Value="#fb923c"/>
         </Style>
     </Window.Resources>
 
@@ -87,12 +87,12 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="#0a0a10" BorderBrush="#1e1e2e" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="#1a120d" BorderBrush="#5a301a" BorderThickness="0,0,1,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="16,20,16,16">
-                    <TextBlock Text="TRF" Foreground="#a78bfa" FontFamily="Segoe UI Black"
+                    <TextBlock Text="TRF" Foreground="#fb923c" FontFamily="Segoe UI Black"
                                FontSize="24"/>
-                    <TextBlock x:Name="StatusText" Text="Not logged in" Foreground="#555577"
+                    <TextBlock x:Name="StatusText" Text="Not logged in" Foreground="#b98b6e"
                                FontFamily="Segoe UI" FontSize="11" Margin="0,4,0,0"/>
                 </StackPanel>
 

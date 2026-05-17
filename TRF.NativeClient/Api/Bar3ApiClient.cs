@@ -37,7 +37,7 @@ public sealed class Bar3ApiClient : IDisposable
         GetJsonAsync<IReadOnlyList<AnalyticsCampaign>>("analytics/campaigns", cancellationToken);
 
     public Task<JsonElement?> GetAccountAsync(CancellationToken cancellationToken = default) =>
-        GetJsonAsync<JsonElement?>("account", cancellationToken);
+        GetJsonAsync<JsonElement?>("api/account", cancellationToken);
 
     public Task<IReadOnlyList<BotServer>?> GetBotServersAsync(CancellationToken cancellationToken = default) =>
         GetJsonAsync<IReadOnlyList<BotServer>>("api/bot/servers", cancellationToken);
@@ -62,6 +62,9 @@ public sealed class Bar3ApiClient : IDisposable
         var endpoints = new[] { "api/alliances", "api/alliance", "alliances", "alliance" };
         return await TryGetFromEndpointsAsync<Alliance>(endpoints, cancellationToken);
     }
+
+    public Task<MemberNationContext?> GetMemberNationContextAsync(CancellationToken cancellationToken = default) =>
+        GetJsonAsync<MemberNationContext>("api/member/nation", cancellationToken);
 
     public async Task<bool> SetConfigAsync(object config, CancellationToken cancellationToken = default)
     {

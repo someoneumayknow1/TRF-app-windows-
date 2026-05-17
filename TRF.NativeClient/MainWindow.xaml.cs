@@ -14,14 +14,16 @@ public partial class MainWindow : Window
     private DiscordSession? _session;
     private string _currentTab = "";
     private readonly string _serverUrl;
+    private string? _apiKey;
+    private string? _discordCookie;
 
     public MainWindow()
     {
         InitializeComponent();
         _serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "https://bar3-server.onrender.com";
-        var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
-        var cookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
-        _client = new Bar3ApiClient(_serverUrl, apiKey, cookie);
+        _apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
+        _discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
+        _client = new Bar3ApiClient(_serverUrl, _apiKey, _discordCookie);
         Loaded += async (_, _) => await InitAsync();
     }
 
@@ -182,8 +184,8 @@ public partial class MainWindow : Window
             var cookie = await authWindow.AuthenticateAsync();
             if (cookie is not null)
             {
-                _client.Dispose();
-                _client = new Bar3ApiClient(_serverUrl, Environment.GetEnvironmentVariable("BAR3_API_KEY"), cookie);
+                _discordCookie = cookie;
+                RecreateClient();
                 _session = await _client.GetDiscordSessionAsync();
                 RefreshNav();
                 await NavigateToAsync("Discord Auth");
@@ -229,9 +231,67 @@ public partial class MainWindow : Window
 
     private async Task RenderAccountAsync()
     {
-        var account = await _client.GetAccountAsync();
         var card = Card();
-        if (account is null) { AddError(card, "Unable to load account."); return; }
+        AddInfo(card, "Log in with your Politics & War API key to enable dashboard/config/analytics/automation/account endpoints.");
+
+        var apiKeyBox = new TextBox
+        {
+            Margin = new Thickness(0, 8, 0, 8),
+            ToolTip = "Politics & War API key",
+            Text = _apiKey ?? string.Empty
+        };
+
+        var loginBtn = ActionButton("Log in");
+        loginBtn.Click += async (_, _) =>
+        {
+            var newApiKey = apiKeyBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newApiKey))
+            {
+                MessageBox.Show("Enter an API key first.", "Account");
+                return;
+            }
+
+            loginBtn.IsEnabled = false;
+            var login = await _client.LoginWithPwApiKeyAsync(newApiKey);
+            if (login is null)
+            {
+                loginBtn.IsEnabled = true;
+                MessageBox.Show("Login failed. Verify the API key and server connection.", "Account");
+                return;
+            }
+
+            _apiKey = newApiKey;
+            RecreateClient();
+            await NavigateToAsync("Account");
+        };
+
+        var logoutBtn = ActionButton("Log out");
+        logoutBtn.Margin = new Thickness(0, 8, 0, 0);
+        logoutBtn.Click += async (_, _) =>
+        {
+            _apiKey = null;
+            RecreateClient();
+            await NavigateToAsync("Account");
+        };
+
+        card.Children.Add(apiKeyBox);
+        card.Children.Add(loginBtn);
+        card.Children.Add(logoutBtn);
+
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            AddInfo(card, "Current status: not logged in.");
+            return;
+        }
+
+        AddInfo(card, "Current status: logged in.");
+        var account = await _client.GetAccountAsync();
+        if (account is null)
+        {
+            AddError(card, "Unable to load account details.");
+            return;
+        }
+
         AddInfo(card, account.Value.ToString());
     }
 
@@ -256,8 +316,16 @@ public partial class MainWindow : Window
 
     private async Task RenderNationsAsync()
     {
-        var nations = await _client.GetNationsAsync();
         var card = Card();
+        var memberContext = await _client.GetMemberNationContextAsync();
+        if (memberContext?.Nation is not null)
+        {
+            var n = memberContext.Nation;
+            AddLabelValue(card, $"#{n.NationId} {n.NationName}", $"{n.LeaderName} · {n.AllianceName} · Cities: {n.NumCities} · Score: {n.Score:0.##}");
+            return;
+        }
+
+        var nations = await _client.GetNationsAsync();
         if (nations is null) { AddError(card, "Unable to load nations."); return; }
         foreach (var n in nations.Take(20))
             AddLabelValue(card, $"#{n.NationId} {n.NationName}", $"{n.Leader} · {n.Alliance} · Cities: {n.Cities} · Score: {n.Score:0.##}");
@@ -265,8 +333,16 @@ public partial class MainWindow : Window
 
     private async Task RenderAlliancesAsync()
     {
-        var alliances = await _client.GetAlliancesAsync();
         var card = Card();
+        var memberContext = await _client.GetMemberNationContextAsync();
+        if (memberContext?.Alliance is not null)
+        {
+            var a = memberContext.Alliance;
+            AddLabelValue(card, $"#{a.AllianceId} {a.Name}", $"Members: {a.NumMembers} · Score: {a.Score:0.##}");
+            return;
+        }
+
+        var alliances = await _client.GetAlliancesAsync();
         if (alliances is null) { AddError(card, "Unable to load alliances."); return; }
         foreach (var a in alliances.Take(20))
             AddLabelValue(card, $"#{a.AllianceId} {a.Name}", $"Members: {a.Members} · Score: {a.Score:0.##}");
@@ -338,7 +414,8 @@ public partial class MainWindow : Window
             "POST /api/sendMessage", "POST /api/setApplicationState",
             "GET  /analytics/campaigns", "POST /analytics/campaigns",
             "GET  /api/nations | /nation", "GET  /api/alliances | /alliance",
-            "GET  /auth/session", "GET  /account",
+            "GET  /api/member/nation (new nation/alliance context endpoint)",
+            "GET  /auth/session", "GET  /api/account",
             "POST /api/bot/config", "GET  /api/bot/servers",
             "GET  /api/bot/commands/usage", "POST /api/bot/send",
             "POST /api/v2/auth/login", "GET  /api/v2/automation/state",
@@ -357,7 +434,7 @@ public partial class MainWindow : Window
         ContentPanel.Children.Add(new TextBlock
         {
             Text = text,
-            Foreground = new SolidColorBrush(Color.FromRgb(224, 224, 238)),
+            Foreground = new SolidColorBrush(Color.FromRgb(252, 235, 220)),
             FontFamily = new FontFamily("Segoe UI Semibold"),
             FontSize = 20,
             Margin = new Thickness(0, 0, 0, 20)
@@ -366,23 +443,25 @@ public partial class MainWindow : Window
 
     private static void AddSubTitle(StackPanel card, string text)
     {
-        card.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)), FontFamily = new FontFamily("Segoe UI Semibold"), FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
+        card.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(251, 146, 60)), FontFamily = new FontFamily("Segoe UI Semibold"), FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
     }
     private static void AddLabelValue(StackPanel card, string label, string value)
     {
-        card.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(136, 136, 170)), FontFamily = new FontFamily("Segoe UI"), FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
-        card.Children.Add(new TextBlock { Text = value, Foreground = new SolidColorBrush(Color.FromRgb(224, 224, 238)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap });
+        card.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(229, 181, 144)), FontFamily = new FontFamily("Segoe UI"), FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+        card.Children.Add(new TextBlock { Text = value, Foreground = new SolidColorBrush(Color.FromRgb(252, 235, 220)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap });
     }
     private static void AddError(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = "⚠ " + msg, Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13 });
-    private static void AddInfo(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = msg, Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 200)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap });
+    private static void AddInfo(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = msg, Foreground = new SolidColorBrush(Color.FromRgb(214, 185, 165)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap });
 
     private StackPanel Card()
     {
         var panel = new StackPanel();
         var border = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(22, 22, 31)),
-            CornerRadius = new CornerRadius(10),
+            Background = new SolidColorBrush(Color.FromRgb(36, 24, 17)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(102, 56, 29)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(16),
             Padding = new Thickness(16),
             Margin = new Thickness(0, 0, 0, 12),
             Child = panel
@@ -395,6 +474,12 @@ public partial class MainWindow : Window
     {
         var style = FindResource("ActionButton") as Style;
         return new Button { Content = text, Style = style, Cursor = System.Windows.Input.Cursors.Hand };
+    }
+
+    private void RecreateClient()
+    {
+        _client.Dispose();
+        _client = new Bar3ApiClient(_serverUrl, _apiKey, _discordCookie);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
