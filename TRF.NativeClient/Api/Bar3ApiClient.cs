@@ -63,6 +63,9 @@ public sealed class Bar3ApiClient : IDisposable
         return await TryGetFromEndpointsAsync<Alliance>(endpoints, cancellationToken);
     }
 
+    public Task<MemberNationContext?> GetMemberNationContextAsync(CancellationToken cancellationToken = default) =>
+        GetJsonAsync<MemberNationContext>("api/member/nation", cancellationToken);
+
     public async Task<bool> SetConfigAsync(object config, CancellationToken cancellationToken = default)
     {
         var payload = new { config };

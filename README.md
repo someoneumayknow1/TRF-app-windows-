@@ -39,6 +39,7 @@ Implemented in the native client API layer:
 - `POST /analytics/campaigns`
 - Nation fetch fallback: `GET /api/nations`, `/api/nation`, `/nations`, `/nation`
 - Alliance fetch fallback: `GET /api/alliances`, `/api/alliance`, `/alliances`, `/alliance`
+- Member nation/alliance context: `GET /api/member/nation`
 - `GET /auth/session`
 - Browser auth URLs: `/auth/discord`, `/auth/logout`
 - `GET /account`

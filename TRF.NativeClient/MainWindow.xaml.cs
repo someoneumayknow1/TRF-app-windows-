@@ -316,8 +316,16 @@ public partial class MainWindow : Window
 
     private async Task RenderNationsAsync()
     {
-        var nations = await _client.GetNationsAsync();
         var card = Card();
+        var memberContext = await _client.GetMemberNationContextAsync();
+        if (memberContext?.Nation is not null)
+        {
+            var n = memberContext.Nation;
+            AddLabelValue(card, $"#{n.NationId} {n.NationName}", $"{n.LeaderName} · {n.AllianceName} · Cities: {n.NumCities} · Score: {n.Score:0.##}");
+            return;
+        }
+
+        var nations = await _client.GetNationsAsync();
         if (nations is null) { AddError(card, "Unable to load nations."); return; }
         foreach (var n in nations.Take(20))
             AddLabelValue(card, $"#{n.NationId} {n.NationName}", $"{n.Leader} · {n.Alliance} · Cities: {n.Cities} · Score: {n.Score:0.##}");
@@ -325,8 +333,16 @@ public partial class MainWindow : Window
 
     private async Task RenderAlliancesAsync()
     {
-        var alliances = await _client.GetAlliancesAsync();
         var card = Card();
+        var memberContext = await _client.GetMemberNationContextAsync();
+        if (memberContext?.Alliance is not null)
+        {
+            var a = memberContext.Alliance;
+            AddLabelValue(card, $"#{a.AllianceId} {a.Name}", $"Members: {a.NumMembers} · Score: {a.Score:0.##}");
+            return;
+        }
+
+        var alliances = await _client.GetAlliancesAsync();
         if (alliances is null) { AddError(card, "Unable to load alliances."); return; }
         foreach (var a in alliances.Take(20))
             AddLabelValue(card, $"#{a.AllianceId} {a.Name}", $"Members: {a.Members} · Score: {a.Score:0.##}");
@@ -398,6 +414,7 @@ public partial class MainWindow : Window
             "POST /api/sendMessage", "POST /api/setApplicationState",
             "GET  /analytics/campaigns", "POST /analytics/campaigns",
             "GET  /api/nations | /nation", "GET  /api/alliances | /alliance",
+            "GET  /api/member/nation (new nation/alliance context endpoint)",
             "GET  /auth/session", "GET  /api/account",
             "POST /api/bot/config", "GET  /api/bot/servers",
             "GET  /api/bot/commands/usage", "POST /api/bot/send",
@@ -417,7 +434,7 @@ public partial class MainWindow : Window
         ContentPanel.Children.Add(new TextBlock
         {
             Text = text,
-            Foreground = new SolidColorBrush(Color.FromRgb(224, 224, 238)),
+            Foreground = new SolidColorBrush(Color.FromRgb(252, 235, 220)),
             FontFamily = new FontFamily("Segoe UI Semibold"),
             FontSize = 20,
             Margin = new Thickness(0, 0, 0, 20)
@@ -426,23 +443,25 @@ public partial class MainWindow : Window
 
     private static void AddSubTitle(StackPanel card, string text)
     {
-        card.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(167, 139, 250)), FontFamily = new FontFamily("Segoe UI Semibold"), FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
+        card.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(251, 146, 60)), FontFamily = new FontFamily("Segoe UI Semibold"), FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
     }
     private static void AddLabelValue(StackPanel card, string label, string value)
     {
-        card.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(136, 136, 170)), FontFamily = new FontFamily("Segoe UI"), FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
-        card.Children.Add(new TextBlock { Text = value, Foreground = new SolidColorBrush(Color.FromRgb(224, 224, 238)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap });
+        card.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(229, 181, 144)), FontFamily = new FontFamily("Segoe UI"), FontSize = 11, Margin = new Thickness(0, 0, 0, 2) });
+        card.Children.Add(new TextBlock { Text = value, Foreground = new SolidColorBrush(Color.FromRgb(252, 235, 220)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap });
     }
     private static void AddError(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = "⚠ " + msg, Foreground = new SolidColorBrush(Color.FromRgb(248, 113, 113)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13 });
-    private static void AddInfo(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = msg, Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 200)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap });
+    private static void AddInfo(StackPanel card, string msg) => card.Children.Add(new TextBlock { Text = msg, Foreground = new SolidColorBrush(Color.FromRgb(214, 185, 165)), FontFamily = new FontFamily("Segoe UI"), FontSize = 13, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap });
 
     private StackPanel Card()
     {
         var panel = new StackPanel();
         var border = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(22, 22, 31)),
-            CornerRadius = new CornerRadius(10),
+            Background = new SolidColorBrush(Color.FromRgb(36, 24, 17)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(102, 56, 29)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(16),
             Padding = new Thickness(16),
             Margin = new Thickness(0, 0, 0, 12),
             Child = panel
