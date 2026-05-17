@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -12,21 +14,20 @@ public partial class App : Application
 
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(
-                $"Unhandled error:\n\n{args.Exception.Message}\n\n{args.Exception.StackTrace}",
-                "TRF Client Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            File.WriteAllText("D:\\stefan\\trf_crash.txt", $"{args.Exception}");
             args.Handled = true;
+            Shutdown();
         };
 
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
-            MessageBox.Show(
-                $"Fatal error:\n\n{args.ExceptionObject}",
-                "TRF Client Fatal Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            File.WriteAllText("D:\\stefan\\trf_crash.txt", args.ExceptionObject?.ToString() ?? "null");
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            File.WriteAllText("D:\\stefan\\trf_crash.txt", args.Exception?.ToString() ?? "null");
+            args.SetObserved();
         };
     }
 }
