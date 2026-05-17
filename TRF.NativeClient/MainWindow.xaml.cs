@@ -14,14 +14,16 @@ public partial class MainWindow : Window
     private DiscordSession? _session;
     private string _currentTab = "";
     private readonly string _serverUrl;
+    private string? _apiKey;
+    private string? _discordCookie;
 
     public MainWindow()
     {
         InitializeComponent();
         _serverUrl = Environment.GetEnvironmentVariable("BAR3_SERVER_URL") ?? "https://bar3-server.onrender.com";
-        var apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
-        var cookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
-        _client = new Bar3ApiClient(_serverUrl, apiKey, cookie);
+        _apiKey = Environment.GetEnvironmentVariable("BAR3_API_KEY");
+        _discordCookie = Environment.GetEnvironmentVariable("BAR3_DISCORD_COOKIE");
+        _client = new Bar3ApiClient(_serverUrl, _apiKey, _discordCookie);
         Loaded += async (_, _) => await InitAsync();
     }
 
@@ -182,8 +184,8 @@ public partial class MainWindow : Window
             var cookie = await authWindow.AuthenticateAsync();
             if (cookie is not null)
             {
-                _client.Dispose();
-                _client = new Bar3ApiClient(_serverUrl, Environment.GetEnvironmentVariable("BAR3_API_KEY"), cookie);
+                _discordCookie = cookie;
+                RecreateClient();
                 _session = await _client.GetDiscordSessionAsync();
                 RefreshNav();
                 await NavigateToAsync("Discord Auth");
@@ -229,9 +231,67 @@ public partial class MainWindow : Window
 
     private async Task RenderAccountAsync()
     {
-        var account = await _client.GetAccountAsync();
         var card = Card();
-        if (account is null) { AddError(card, "Unable to load account."); return; }
+        AddInfo(card, "Log in with your Politics & War API key to enable dashboard/config/analytics/automation/account endpoints.");
+
+        var apiKeyBox = new TextBox
+        {
+            Margin = new Thickness(0, 8, 0, 8),
+            ToolTip = "Politics & War API key",
+            Text = _apiKey ?? string.Empty
+        };
+
+        var loginBtn = ActionButton("Log in");
+        loginBtn.Click += async (_, _) =>
+        {
+            var newApiKey = apiKeyBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newApiKey))
+            {
+                MessageBox.Show("Enter an API key first.", "Account");
+                return;
+            }
+
+            loginBtn.IsEnabled = false;
+            var login = await _client.LoginWithPwApiKeyAsync(newApiKey);
+            if (login is null)
+            {
+                loginBtn.IsEnabled = true;
+                MessageBox.Show("Login failed. Verify the API key and server connection.", "Account");
+                return;
+            }
+
+            _apiKey = newApiKey;
+            RecreateClient();
+            await NavigateToAsync("Account");
+        };
+
+        var logoutBtn = ActionButton("Log out");
+        logoutBtn.Margin = new Thickness(0, 8, 0, 0);
+        logoutBtn.Click += async (_, _) =>
+        {
+            _apiKey = null;
+            RecreateClient();
+            await NavigateToAsync("Account");
+        };
+
+        card.Children.Add(apiKeyBox);
+        card.Children.Add(loginBtn);
+        card.Children.Add(logoutBtn);
+
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            AddInfo(card, "Current status: not logged in.");
+            return;
+        }
+
+        AddInfo(card, "Current status: logged in.");
+        var account = await _client.GetAccountAsync();
+        if (account is null)
+        {
+            AddError(card, "Unable to load account details.");
+            return;
+        }
+
         AddInfo(card, account.Value.ToString());
     }
 
@@ -338,7 +398,7 @@ public partial class MainWindow : Window
             "POST /api/sendMessage", "POST /api/setApplicationState",
             "GET  /analytics/campaigns", "POST /analytics/campaigns",
             "GET  /api/nations | /nation", "GET  /api/alliances | /alliance",
-            "GET  /auth/session", "GET  /account",
+            "GET  /auth/session", "GET  /api/account",
             "POST /api/bot/config", "GET  /api/bot/servers",
             "GET  /api/bot/commands/usage", "POST /api/bot/send",
             "POST /api/v2/auth/login", "GET  /api/v2/automation/state",
@@ -395,6 +455,12 @@ public partial class MainWindow : Window
     {
         var style = FindResource("ActionButton") as Style;
         return new Button { Content = text, Style = style, Cursor = System.Windows.Input.Cursors.Hand };
+    }
+
+    private void RecreateClient()
+    {
+        _client.Dispose();
+        _client = new Bar3ApiClient(_serverUrl, _apiKey, _discordCookie);
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
